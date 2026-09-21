@@ -271,11 +271,13 @@ class SubChunk {
   }
 
   addToPalette (l, stateId, count = 0) {
-    // With hashed runtime ids (the blockHashes feature) stateId is a 32-bit state hash, not an index into the
-    // blockStates array, so look it up in the hash-keyed blocksByStateId table first and fall back to the index-ordered
-    // array for non-hashed registries. Tolerate an unknown state id rather than dereferencing undefined: a single
-    // block update carrying an unmapped id must not crash the whole client.
-    const block = this.registry.blocksByStateId?.[stateId] ?? this.registry.blockStates[stateId]
+    // With hashed runtime ids (the blockHashes feature) stateId is a 32-bit state hash, not an index into blockStates:
+    // resolve it through the runtime-id map to the internal state id first. Then read the RAW per-state record from
+    // blockStates - it carries the per-state `states` NBT (the block's properties). blocksByStateId holds block
+    // definitions without that payload, so using it would drop the properties on a save/load round-trip. Tolerate an
+    // unknown id rather than dereferencing undefined: one unmapped block update must not crash the whole client.
+    const internalId = this.registry.blocksByRuntimeId?.[stateId]?.stateId ?? stateId
+    const block = this.registry.blockStates?.[internalId]
     this.palette[l].push({ stateId, name: block?.name, states: block?.states, count })
     const minBits = neededBits(this.palette[l].length - 1)
     if (minBits > this.blocks[l].bitsPerBlock) {
