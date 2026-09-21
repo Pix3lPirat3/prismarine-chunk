@@ -190,6 +190,27 @@ describe('special bedrock tests', () => {
   })
 })
 
+describe('bedrock SubChunk persistence preserves non-default block properties', () => {
+  const registry = require('prismarine-registry')('bedrock_1.26.45')
+  const Block = require('prismarine-block')(registry)
+  const SubChunk = require('../src/bedrock/1.3/SubChunk')
+  const { StorageType } = require('../src/bedrock/common/constants')
+  // state 1530 is oak_log with pillar_axis=x (a non-default property); 1529 is the y-axis default. A palette entry that
+  // drops the per-state `states` NBT re-resolves to the default on load, silently rewriting the axis.
+  const X_AXIS_OAK_LOG = 1530
+
+  for (const fmt of ['LocalPersistence', 'NetworkPersistence']) {
+    it('round-trips a non-default state id through ' + fmt, async () => {
+      const sc = SubChunk.create(registry, Block, 0)
+      sc.setBlockStateId(0, 0, 0, 0, X_AXIS_OAK_LOG)
+      const buffer = await sc.encode(StorageType[fmt])
+      const decoded = new SubChunk(registry, Block, { y: 0 })
+      decoded.decode(StorageType[fmt], buffer)
+      assert.strictEqual(decoded.getBlockStateId(0, 0, 0, 0), X_AXIS_OAK_LOG)
+    })
+  }
+})
+
 const dbdiff = (last, now) => {
   for (let i = 0; i < last.length; i++) {
     if (last[i] !== now[i]) {
