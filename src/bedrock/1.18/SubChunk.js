@@ -6,10 +6,18 @@ class SubChunk118 extends SubChunk13 {
   loadRuntimePalette (storageLayer, stream, paletteSize) {
     this.palette[storageLayer] = []
 
+    const air = this.registry.blocksByName && this.registry.blocksByName.air
     for (let i = 0; i < paletteSize; i++) {
       const runtimeId = stream.readZigZagVarInt()
       const block = this.registry.blocksByRuntimeId[runtimeId]
-      this.palette[storageLayer][i] = { stateId: block.stateId, ...block, count: 0 }
+      if (block) {
+        this.palette[storageLayer][i] = { stateId: block.stateId, ...block, count: 0 }
+      } else {
+        // Unknown runtime hash: a block present in the server's version but missing from this data version (e.g. a newer
+        // release resolving its block data from an older fallback). Fall back to air so the rest of the chunk still
+        // decodes instead of the whole world layer going dark; the entry keeps its runtimeId for diagnosis.
+        this.palette[storageLayer][i] = { stateId: air ? air.defaultState : 0, name: air ? air.name : 'air', runtimeId, count: 0 }
+      }
     }
   }
 
